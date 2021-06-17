@@ -67,7 +67,7 @@ namespace DiscordVoicechatTTS
         [SlashCommand("join", "joins your voice channel and registers you for TTS input")]
         public async Task VoiceChannelJoin(InteractionContext context)
         {
-            if (banned.Contains(context.User.Id)) { await context.CreateResponseAsync(InteractionResponseType.ChannelMessageWithSource, new DiscordInteractionResponseBuilder().WithContent("die")); return; }
+            //if (banned.Contains(context.User.Id)) { await context.CreateResponseAsync(InteractionResponseType.ChannelMessageWithSource, new DiscordInteractionResponseBuilder().WithContent("die")); return; }
 
             lock (listenMap)
             {
@@ -143,8 +143,8 @@ namespace DiscordVoicechatTTS
 
         }
 
-        [SlashCommand("skip", "(anorl and rat only) skips whatever sentence the bot is currently speaking")]
-        public async Task MessageSkip(InteractionContext context, [Option("user", "the damned")] DiscordUser victim)
+        [SlashCommand("skip", "[NOT IMPLEMENTED] (anorl and rat only) skips whatever sentence the bot is currently speaking")]
+        public async Task MessageSkip(InteractionContext context)
         {
             if (!mods.Contains(context.User.Id)) { await context.CreateResponseAsync(DSharpPlus.InteractionResponseType.ChannelMessageWithSource, new DiscordInteractionResponseBuilder().WithContent("die")); return; }
             try
@@ -152,19 +152,17 @@ namespace DiscordVoicechatTTS
                 speakThread.Abort();
                 speakThread = new Thread(SpeakWords);
                 speakThread.Start();
-                await context.CreateResponseAsync(InteractionResponseType.ChannelMessageWithSource, new DiscordInteractionResponseBuilder().WithContent($"skipped!"));
             }
             catch (Exception)
             {
                 speakThread = new Thread(SpeakWords);
                 speakThread.Start();
-                await context.CreateResponseAsync(InteractionResponseType.ChannelMessageWithSource, new DiscordInteractionResponseBuilder().WithContent($"skipped?"));
-                //await context.CreateResponseAsync(InteractionResponseType.ChannelMessageWithSource, new DiscordInteractionResponseBuilder().WithContent($"oopsie doopsie someone did a fucky wucky uwu!"));
+                await context.CreateResponseAsync(InteractionResponseType.ChannelMessageWithSource, new DiscordInteractionResponseBuilder().WithContent($"oopsie doopsie someone did a fucky wucky uwu!"));
             }
 
         }
 
-        [SlashCommand("vs", "sends a tts message in the voice channel [Debug]")]
+        [SlashCommand("vs", "[DEBUG] sends a tts message in the voice channel")]
         public async Task SayInVoice(InteractionContext context, [Option("speak", "what to speak")] string toSpeak)
         {
             if (!permittedUsers.Contains(context.User.Id)) { return; }
@@ -280,7 +278,7 @@ namespace DiscordVoicechatTTS
 #pragma warning disable CS4014
         public static async Task MessageHandlerTTS(DiscordClient client, MessageCreateEventArgs eventArgs)
         {
-            if (true) //permittedUsers.Contains(eventArgs.Author.Id)
+            if (permittedUsers.Contains(eventArgs.Author.Id)) 
             {
                 if (listenMap.Keys.Contains(eventArgs.Author.Id) && listenMap[eventArgs.Author.Id] == eventArgs.Channel.Id)
                 {
