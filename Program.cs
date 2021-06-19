@@ -2,8 +2,10 @@
 using System.IO;
 using System.Threading.Tasks;
 using DSharpPlus;
+using DSharpPlus.EventArgs;
 using DSharpPlus.SlashCommands;
 using DSharpPlus.VoiceNext;
+using DSharpPlus.VoiceNext.EventArgs;
 
 namespace DiscordVoicechatTTS
 {

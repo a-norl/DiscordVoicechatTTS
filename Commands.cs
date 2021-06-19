@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using DSharpPlus;
@@ -11,6 +12,7 @@ using DSharpPlus.Entities;
 using DSharpPlus.EventArgs;
 using DSharpPlus.SlashCommands;
 using DSharpPlus.VoiceNext;
+using DSharpPlus.VoiceNext.EventArgs;
 using Microsoft.CognitiveServices.Speech;
 using Microsoft.CognitiveServices.Speech.Audio;
 
@@ -31,7 +33,7 @@ namespace DiscordVoicechatTTS
         static DiscordGuild currentGuild;
         static DiscordClient discordClient;
 
-        static ulong[] permittedUsers = new ulong[] { 310155349296414721, 503605813424816129, 192742855280820224, 243392035627728896 };
+        static ulong[] permittedUsers = new ulong[] { 310155349296414721, 503605813424816129, 192742855280820224, 243392035627728896, 180884068987043842 };
 
         static ulong[] mods = new ulong[] { 243392035627728896, 192742855280820224 };
 
@@ -42,7 +44,8 @@ namespace DiscordVoicechatTTS
             { 310155349296414721, "en-IE-ConnorNeural" },
             { 503605813424816129, "fr-FR-DeniseNeural" },
             { 192742855280820224, "en-IN-Ravi" },
-            { 243392035627728896, "ja-JP-HarukaRUS" }
+            { 243392035627728896, "ja-JP-HarukaRUS" },
+            { 180884068987043842, "pt-PT-RaquelNeural" }
         };
 
         [SlashCommand("voicetest", "tests voice with string input")]
@@ -64,33 +67,36 @@ namespace DiscordVoicechatTTS
             await editTask;
         }
 
-        [SlashCommand("join", "joins your voice channel and registers you for TTS input")]
+        [SlashCommand("joinTTS", "joins your voice channel and registers you for TTS input")]
         public async Task VoiceChannelJoin(InteractionContext context)
         {
+            await context.CreateResponseAsync(InteractionResponseType.DeferredChannelMessageWithSource, null);
             //if (banned.Contains(context.User.Id)) { await context.CreateResponseAsync(InteractionResponseType.ChannelMessageWithSource, new DiscordInteractionResponseBuilder().WithContent("die")); return; }
+            DiscordVoiceState botVoiceState = context.Guild.CurrentMember.VoiceState;
+            DiscordVoiceState userVoiceState = context.Member.VoiceState;
 
-            lock (listenMap)
+            if (botVoiceState is null || botVoiceState.Channel is null)
             {
-                listenMap.Add(context.User.Id, context.Channel.Id);
-            }
-            shouldStop = false;
-
-
-
-            if (context.Guild.CurrentMember.VoiceState is null)
-            {
-
-                var voiceState = context.Member.VoiceState;
-                if (voiceState is null)
+                if (userVoiceState is null)
                 {
-                    await context.CreateResponseAsync(InteractionResponseType.ChannelMessageWithSource, new DiscordInteractionResponseBuilder().WithContent("you're not in a voice channel"));
+
+                    await context.EditResponseAsync(new DiscordWebhookBuilder().WithContent("you're not in a voice channel"));
                     return;
                 }
-                var channel = voiceState.Channel;
 
-                await channel.ConnectAsync();
+                lock (listenMap)
+                {
+                    listenMap.Add(context.User.Id, context.Channel.Id);
+                }
+                shouldStop = false;
 
-                await context.CreateResponseAsync(InteractionResponseType.ChannelMessageWithSource, new DiscordInteractionResponseBuilder().WithContent("joined and registered you!"));
+
+                var channel = userVoiceState.Channel;
+
+                var connection = await channel.ConnectAsync();
+                connection.UserLeft += LeaveHandler;
+
+                await context.EditResponseAsync(new DiscordWebhookBuilder().WithContent("joined and registered you!"));
                 discordClient = context.Client;
                 currentGuild = context.Guild;
                 speakThread = new Thread(SpeakWords);
@@ -98,32 +104,53 @@ namespace DiscordVoicechatTTS
             }
             else
             {
-                await context.CreateResponseAsync(InteractionResponseType.ChannelMessageWithSource, new DiscordInteractionResponseBuilder().WithContent("registered you!"));
+                if (userVoiceState is null)
+                {
+                    await context.EditResponseAsync(new DiscordWebhookBuilder().WithContent("you're not in a voice channel"));
+                    return;
+                }
+
+                lock (listenMap)
+                {
+                    listenMap.Add(context.User.Id, context.Channel.Id);
+                }
+                shouldStop = false;
+                await context.EditResponseAsync(new DiscordWebhookBuilder().WithContent("registered you!"));
             }
         }
 
-        [SlashCommand("leave", "leaves the voice channel")]
+        [SlashCommand("leaveTTS", "leaves the voice channel")]
         public async Task VoiceChannelLeave(InteractionContext context)
         {
-            lock (listenMap)
+            await context.CreateResponseAsync(InteractionResponseType.DeferredChannelMessageWithSource, null);
+            DiscordVoiceState botVoiceState = context.Guild.CurrentMember.VoiceState;
+            if (botVoiceState is null)
             {
-                listenMap.Remove(context.User.Id);
-                if (listenMap.Count != 0)
-                {
-                    context.CreateResponseAsync(InteractionResponseType.ChannelMessageWithSource, new DiscordInteractionResponseBuilder().WithContent("deregistered you!"));
-                    return;
-                }
+                await context.EditResponseAsync(new DiscordWebhookBuilder().WithContent("i am not in a voice channel"));
+                return;
             }
 
             var voiceState = context.Member.VoiceState;
             if (voiceState is null)
             {
-                await context.CreateResponseAsync(DSharpPlus.InteractionResponseType.ChannelMessageWithSource, new DiscordInteractionResponseBuilder().WithContent("you're not in a voice channel"));
+                await context.EditResponseAsync(new DiscordWebhookBuilder().WithContent("you're not in a voice channel"));
+
                 return;
             }
-            context.Client.GetVoiceNext().GetConnection(context.Guild).Disconnect();
+
+            lock (listenMap)
+            {
+                listenMap.Remove(context.User.Id);
+                if (listenMap.Count != 0)
+                {
+                    context.EditResponseAsync(new DiscordWebhookBuilder().WithContent("deregistered you"));
+                    return;
+                }
+            }
+
+            context.Client.GetVoiceNext().GetConnection(context.Guild).Dispose();
             shouldStop = true;
-            await context.CreateResponseAsync(DSharpPlus.InteractionResponseType.ChannelMessageWithSource, new DiscordInteractionResponseBuilder().WithContent("left!"));
+            await context.EditResponseAsync(new DiscordWebhookBuilder().WithContent("left!"));
         }
 
         [SlashCommand("deregister", "(anorl and rat only) stops the bot from listening to a user")]
@@ -146,20 +173,7 @@ namespace DiscordVoicechatTTS
         [SlashCommand("skip", "[NOT IMPLEMENTED] (anorl and rat only) skips whatever sentence the bot is currently speaking")]
         public async Task MessageSkip(InteractionContext context)
         {
-            if (!mods.Contains(context.User.Id)) { await context.CreateResponseAsync(DSharpPlus.InteractionResponseType.ChannelMessageWithSource, new DiscordInteractionResponseBuilder().WithContent("die")); return; }
-            try
-            {
-                speakThread.Abort();
-                speakThread = new Thread(SpeakWords);
-                speakThread.Start();
-            }
-            catch (Exception)
-            {
-                speakThread = new Thread(SpeakWords);
-                speakThread.Start();
-                await context.CreateResponseAsync(InteractionResponseType.ChannelMessageWithSource, new DiscordInteractionResponseBuilder().WithContent($"oopsie doopsie someone did a fucky wucky uwu!"));
-            }
-
+            await context.CreateResponseAsync(InteractionResponseType.ChannelMessageWithSource, new DiscordInteractionResponseBuilder().WithContent("this says not implemented. can you read?"));
         }
 
         [SlashCommand("vs", "[DEBUG] sends a tts message in the voice channel")]
@@ -241,10 +255,12 @@ namespace DiscordVoicechatTTS
                     voiceNext = discordClient.GetVoiceNext();
                     connection = voiceNext.GetConnection(currentGuild);
                 }
-                catch (Exception e)
+                catch (Exception)
                 {
                     break;
                 }
+
+                if (connection is null) { break; }
 
                 if (!connection.IsPlaying)
                 {
@@ -278,12 +294,17 @@ namespace DiscordVoicechatTTS
 #pragma warning disable CS4014
         public static async Task MessageHandlerTTS(DiscordClient client, MessageCreateEventArgs eventArgs)
         {
-            if (permittedUsers.Contains(eventArgs.Author.Id)) 
+            if (permittedUsers.Contains(eventArgs.Author.Id))
             {
                 if (listenMap.Keys.Contains(eventArgs.Author.Id) && listenMap[eventArgs.Author.Id] == eventArgs.Channel.Id)
                 {
                     //TODO Replace emojis
                     string message = eventArgs.Message.Content;
+
+                    message = Regex.Replace(message, "/(http|ftp|https)://([\\w_-]+(?:(?:\\.[\\w_-]+)+))([\\w.,@?^=%&:/~+#-]*[\\w@?^=%&/~+#-])?/gm", "");
+                    message = Regex.Replace(message, "<(.*?)>", "");
+
+                    if (message.Trim() == "") { return; }
 
                     lock (messagesToEncode)
                     {
@@ -299,6 +320,18 @@ namespace DiscordVoicechatTTS
                 }
             }
 
+        }
+
+        public static async Task LeaveHandler(VoiceNextConnection client, VoiceUserLeaveEventArgs eventArgs)
+        {
+            eventArgs.Handled = true;
+            if (listenMap.ContainsKey(eventArgs.User.Id))
+            {
+                listenMap.Remove(eventArgs.User.Id);
+                if (listenMap.Count != 0) { return; }
+                Task.Run(() => client.Dispose());
+                Task.Run(() => client.Disconnect());
+            }
         }
 
     }
