@@ -167,7 +167,12 @@ namespace DiscordVoicechatTTS
             {
                 await context.CreateResponseAsync(InteractionResponseType.ChannelMessageWithSource, new DiscordInteractionResponseBuilder().WithContent($"{victim.Username} was not registered!"));
             }
-
+            if (listenMap.Count == 0)
+            {
+                context.Client.GetVoiceNext().GetConnection(context.Guild).Dispose();
+                shouldStop = true;
+                await context.EditResponseAsync(new DiscordWebhookBuilder().WithContent("left!"));
+            }
         }
 
         [SlashCommand("skip", "[NOT IMPLEMENTED] (anorl and rat only) skips whatever sentence the bot is currently speaking")]
@@ -300,9 +305,9 @@ namespace DiscordVoicechatTTS
                 {
                     //TODO Replace emojis
                     string message = eventArgs.Message.Content;
-		            string pattern = @"<(.*?):\d+>";
-		            string replacement = "$1";
-                    message = Regex.Replace(message, pattern, replacement);;
+                    string pattern = @"<(.*?):\d+>";
+                    string replacement = "$1";
+                    message = Regex.Replace(message, pattern, replacement); ;
 
                     message = Regex.Replace(message, "/(http|ftp|https)://([\\w_-]+(?:(?:\\.[\\w_-]+)+))([\\w.,@?^=%&:/~+#-]*[\\w@?^=%&/~+#-])?/gm", "");
                     message = Regex.Replace(message, "<(.*?)>", "");
