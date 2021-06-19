@@ -210,7 +210,7 @@ namespace DiscordVoicechatTTS
             if (VoiceDictionary.Keys.Contains(userID))
             { config.SpeechSynthesisVoiceName = VoiceDictionary[userID]; }
             else
-            { config.SpeechSynthesisVoiceName = "uk-UA-OstapNeural"; }
+            { config.SpeechSynthesisVoiceName = "ja-JP-HarukaRUS"; }
 
             string fileoutpath = $"Output\\out_{DateTime.Now.ToFileTime()}.wav";
             SpeechSynthesizer synthesizer = new(config, null);
@@ -294,12 +294,15 @@ namespace DiscordVoicechatTTS
 #pragma warning disable CS4014
         public static async Task MessageHandlerTTS(DiscordClient client, MessageCreateEventArgs eventArgs)
         {
-            if (permittedUsers.Contains(eventArgs.Author.Id))
+            if (true) //permittedUsers.Contains(eventArgs.Author.Id)
             {
                 if (listenMap.Keys.Contains(eventArgs.Author.Id) && listenMap[eventArgs.Author.Id] == eventArgs.Channel.Id)
                 {
                     //TODO Replace emojis
                     string message = eventArgs.Message.Content;
+		            string pattern = @"<(.*?):\d+>";
+		            string replacement = "$1";
+                    message = Regex.Replace(message, pattern, replacement);;
 
                     message = Regex.Replace(message, "/(http|ftp|https)://([\\w_-]+(?:(?:\\.[\\w_-]+)+))([\\w.,@?^=%&:/~+#-]*[\\w@?^=%&/~+#-])?/gm", "");
                     message = Regex.Replace(message, "<(.*?)>", "");
