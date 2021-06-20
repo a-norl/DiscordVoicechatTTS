@@ -45,7 +45,7 @@ namespace DiscordVoicechatTTS
             { 503605813424816129, "fr-FR-DeniseNeural" },
             { 192742855280820224, "en-IN-Ravi" },
             { 243392035627728896, "ja-JP-HarukaRUS" },
-            { 180884068987043842, "pt-PT-RaquelNeural" }
+            { 180884068987043842, "en-IE-EmilyNeural" }
         };
 
         [SlashCommand("voicetest", "tests voice with string input")]
