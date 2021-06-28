@@ -33,7 +33,7 @@ namespace DiscordVoicechatTTS
         static DiscordGuild currentGuild;
         static DiscordClient discordClient;
 
-        static ulong[] permittedUsers = new ulong[] { 310155349296414721, 503605813424816129, 192742855280820224, 243392035627728896, 180884068987043842 };
+        static ulong[] permittedUsers = new ulong[] { 310155349296414721, 503605813424816129, 192742855280820224, 243392035627728896, 180884068987043842, 148062387558154240 };
 
         static ulong[] mods = new ulong[] { 243392035627728896, 192742855280820224 };
 
@@ -45,8 +45,29 @@ namespace DiscordVoicechatTTS
             { 503605813424816129, "fr-FR-DeniseNeural" },
             { 192742855280820224, "en-IN-Ravi" },
             { 243392035627728896, "ja-JP-HarukaRUS" },
-            { 180884068987043842, "en-IE-EmilyNeural" }
+            { 180884068987043842, "en-IE-EmilyNeural" },
+            { 148062387558154240, "uk-UA-OstapNeural" },
         };
+
+        [SlashCommand("refresh", "in case something fucks up")]
+        public async Task Refresh(InteractionContext context)
+        {
+            if (!permittedUsers.Contains(context.User.Id))
+            {
+                await context.CreateResponseAsync(DSharpPlus.InteractionResponseType.ChannelMessageWithSource, new DiscordInteractionResponseBuilder().WithContent("die"));
+                return;
+            }
+            var connection = context.Client.GetVoiceNext().GetConnection(context.Guild);
+            connection.Disconnect();
+            connection.Dispose();
+            shouldStop = false;
+            messagesToSpeak.Clear();
+            messagesToEncode.Clear();
+            messagePaths.Clear();
+            listenMap.Clear();
+            banned.Clear();
+            await context.CreateResponseAsync(DSharpPlus.InteractionResponseType.ChannelMessageWithSource, new DiscordInteractionResponseBuilder().WithContent("restarted program"));
+        }
 
         [SlashCommand("voicetest", "tests voice with string input")]
         public async Task VoiceTest(InteractionContext context, [Option("speak", "what to speak")] string toSpeak, [Option("name", "the azure tts voice to use")] string voiceName = "en-IE-ConnorNeural")
