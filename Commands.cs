@@ -74,7 +74,7 @@ namespace DiscordVoicechatTTS
         {
             await context.CreateResponseAsync(DSharpPlus.InteractionResponseType.ChannelMessageWithSource, new DiscordInteractionResponseBuilder().WithContent("generating..."));
             config.SpeechSynthesisVoiceName = voiceName.Trim();
-            string fileoutpath = $"Output\\out_{DateTime.Now.ToFileTime()}.wav";
+            string fileoutpath = $"Output{Path.DirectorySeparatorChar}out_{DateTime.Now.ToFileTime()}.wav";
             using var audioConfig = AudioConfig.FromWavFileOutput(fileoutpath);
             var synthesizer = new SpeechSynthesizer(config, null);
 
@@ -209,7 +209,7 @@ namespace DiscordVoicechatTTS
             //Generates Audio
             Task initialResponseTask = context.CreateResponseAsync(DSharpPlus.InteractionResponseType.ChannelMessageWithSource, new DiscordInteractionResponseBuilder().WithContent("Generating Voice"));
             config.SpeechSynthesisVoiceName = "en-IE-ConnorNeural";
-            string fileoutpath = $"Output\\out_{DateTime.Now.ToFileTime()}.wav";
+            string fileoutpath = $"Output{Path.DirectorySeparatorChar}out_{DateTime.Now.ToFileTime()}.wav";
             SpeechSynthesizer synthesizer = new(config, null);
             SpeechSynthesisResult result = await synthesizer.SpeakTextAsync(toSpeak);
             AudioDataStream audiostream = AudioDataStream.FromResult(result);
@@ -238,7 +238,7 @@ namespace DiscordVoicechatTTS
             else
             { config.SpeechSynthesisVoiceName = "ja-JP-HarukaRUS"; }
 
-            string fileoutpath = $"Output\\out_{DateTime.Now.ToFileTime()}.wav";
+            string fileoutpath = $"Output{Path.DirectorySeparatorChar}out_{DateTime.Now.ToFileTime()}.wav";
             SpeechSynthesizer synthesizer = new(config, null);
             SpeechSynthesisResult result = await synthesizer.SpeakTextAsync(toSpeak);
             AudioDataStream audiostream = AudioDataStream.FromResult(result);
