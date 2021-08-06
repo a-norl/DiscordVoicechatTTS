@@ -42,12 +42,14 @@ namespace DiscordVoicechatTTS
         static readonly Dictionary<ulong, string> VoiceDictionary = new()
         {
             { 310155349296414721, "en-IE-ConnorNeural" },
-            { 503605813424816129, "fr-FR-DeniseNeural" },
+            { 503605813424816129, "en-SG-LunaNeural" },
             { 192742855280820224, "en-IN-Ravi" },
             { 243392035627728896, "ja-JP-HarukaRUS" },
             { 180884068987043842, "en-IE-EmilyNeural" },
             { 148062387558154240, "uk-UA-OstapNeural" },
         };
+
+        static string speechSSML = File.ReadAllText("ssml.xml");
 
         [SlashCommand("refresh", "in case something fucks up")]
         public async Task Refresh(InteractionContext context)
@@ -236,11 +238,20 @@ namespace DiscordVoicechatTTS
             if (VoiceDictionary.Keys.Contains(userID))
             { config.SpeechSynthesisVoiceName = VoiceDictionary[userID]; }
             else
-            { config.SpeechSynthesisVoiceName = "ja-JP-HarukaRUS"; }
-
+            { config.SpeechSynthesisVoiceName = "en-GB-LibbyNeural"; }
+            config.SetProfanity(ProfanityOption.Removed);
             string fileoutpath = $"Output{Path.DirectorySeparatorChar}out_{DateTime.Now.ToFileTime()}.wav";
             SpeechSynthesizer synthesizer = new(config, null);
-            SpeechSynthesisResult result = await synthesizer.SpeakTextAsync(toSpeak);
+            SpeechSynthesisResult result;
+            if (userID == 310155349296414721)
+            {
+                //toSpeak = BogosBinter(toSpeak, ' ');
+                result = await synthesizer.SpeakSsmlAsync(speechSSML.Replace("[INSERT SPEECH HERE]", toSpeak));
+            }
+            else
+            {
+                result = await synthesizer.SpeakTextAsync(toSpeak);
+            }
             AudioDataStream audiostream = AudioDataStream.FromResult(result);
             Task saveFileTask = audiostream.SaveToWaveFileAsync(fileoutpath);
             await saveFileTask;
@@ -333,6 +344,12 @@ namespace DiscordVoicechatTTS
                     message = Regex.Replace(message, "/(http|ftp|https)://([\\w_-]+(?:(?:\\.[\\w_-]+)+))([\\w.,@?^=%&:/~+#-]*[\\w@?^=%&/~+#-])?/gm", "");
                     message = Regex.Replace(message, "<(.*?)>", "");
 
+                    if (message.ToLower().Contains("jasna"))
+                    {
+                        message = message.Replace("jasna", "yasna");
+                        message = message.Replace("Jasna", "yasna");
+                    }
+
                     if (message.Trim() == "") { return; }
 
                     lock (messagesToEncode)
@@ -361,6 +378,287 @@ namespace DiscordVoicechatTTS
                 Task.Run(() => client.Dispose());
                 Task.Run(() => client.Disconnect());
             }
+        }
+
+        public static string BogosBinter(string msg, char seperator)
+        {
+            char[] alphanums = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ".ToCharArray();
+            char[] vowels = new char[] { 'a', 'e', 'i', 'o', 'u', 'y', 'A', 'E', 'I', 'O', 'U', 'Y' };
+            Regex regUser = new Regex(@"<@[!]{1}[0-9]+>|<@[0-9]+>");
+            Regex regRole = new Regex(@"<@[&]{1}[0-9]+>");
+            Regex regChannel = new Regex(@"<[#]{1}[0-9]+>");
+            Regex regNums = new Regex(@"[0-9]+");
+
+            List<string> newWords = new List<string>();
+            string[] words = msg.Split(seperator);
+            foreach (string word in words)
+            {
+                if (regUser.IsMatch(word) || regRole.IsMatch(word) || regChannel.IsMatch(word) || word.ToLower().StartsWith("b") || word.Contains("@everyone"))
+                {
+                    newWords.Add(word);
+                    continue;
+                }
+
+                char[] letters = word.ToCharArray();
+                //int i = 0;
+                bool isVowel = false;
+                bool hasAlpha = false;
+                if (letters.Length == 1)
+                {
+                    if (alphanums.Contains(letters[0]))
+                    {
+                        isVowel = true;
+                        string newStringDub = "";
+                        if (vowels.Contains(letters[0]))
+                        {
+                            if (letters[0].ToString().ToUpper() == letters[0].ToString())
+                            {
+                                newStringDub = "B" + letters[0];
+                            }
+                            else
+                            {
+                                newStringDub = "b" + letters[0];
+                            }
+                        }
+                        else
+                        {
+                            if (letters[0].ToString().ToUpper() == letters[0].ToString())
+                            {
+                                newStringDub = "B";
+                            }
+                            else
+                            {
+                                newStringDub = "b";
+                            }
+                        }
+
+                        newWords.Add(newStringDub);
+                    }
+                }
+                else
+                {
+                    for (int i = 0; i < letters.Length; i++)
+                    {
+                        char letter = letters[i];
+                        if (vowels.Contains(letter))
+                        {
+                            isVowel = true;
+                        }
+                        if (alphanums.Contains(letter))
+                        {
+                            hasAlpha = true;
+                        }
+
+
+                        if (isVowel)
+                        {
+                            string newString = "";
+                            if (i == 0)
+                            {
+                                if (letters[0].ToString().ToUpper() == letters[0].ToString())
+                                {
+                                    newString += "B";
+                                    if (letters.Length >= 2)
+                                    {
+                                        if (letters[1].ToString().ToUpper() == letters[1].ToString())
+                                        {
+                                            newString += letters[0].ToString().ToUpper();
+                                        }
+                                        else
+                                        {
+                                            newString += letters[0].ToString().ToLower();
+                                        }
+                                    }
+                                    for (int x = 1; x < letters.Length; x++)
+                                    {
+                                        newString += letters[x];
+                                    }
+                                }
+                                else
+                                {
+                                    newString += "b";
+                                    for (int x = 0; x < letters.Length; x++)
+                                    {
+                                        newString += letters[x];
+                                    }
+                                }
+
+
+                            }
+                            else
+                            {
+                                if (letters.Count() > 4 && i > letters.Count() - (letters.Count() / 4))
+                                {
+                                    if (letters[0].ToString().ToUpper() == letters[0].ToString())
+                                    {
+                                        newString += "B";
+                                    }
+                                    else
+                                    {
+                                        newString += "b";
+                                    }
+                                    newString += word;
+                                }
+                                else
+                                {
+                                    int tempCounter = 0;
+                                    while (true)
+                                    {
+
+                                        if (!alphanums.Contains(letters[tempCounter]))
+                                        {
+                                            tempCounter++;
+                                            if (tempCounter > letters.Length)
+                                            {
+                                                newWords.Add(word);
+                                                continue;
+                                            }
+                                        }
+                                        else
+                                        {
+                                            break;
+                                        }
+                                    }
+                                    for (int y = 0; y < tempCounter; y++)
+                                    {
+                                        newString += letters[y];
+
+                                    }
+                                    /*if (letters[tempCounter].ToString().ToUpper() == "B")
+                                    {
+
+                                    }*/
+                                    if (letters[tempCounter].ToString().ToUpper() == letters[tempCounter].ToString())
+                                    {
+                                        newString += "B";
+                                    }
+                                    else
+                                    {
+                                        newString += "b";
+                                    }
+
+                                    for (int y = 0; y < letters.Length; y++)
+                                    {
+                                        if (y >= i /*|| !alphanums.Contains(letters[y])*/)
+                                        {
+                                            if (y == i)
+                                            {
+                                                if (letters[i].ToString().ToUpper() == letters[i].ToString())
+                                                {
+                                                    if (letters.Length - 1 > i)
+                                                    {
+                                                        if (letters[i + 1].ToString().ToUpper() == letters[i + 1].ToString())
+                                                        {
+                                                            newString += letters[y].ToString().ToUpper();
+                                                        }
+                                                        else
+                                                        {
+                                                            newString += letters[y].ToString().ToLower();
+                                                        }
+                                                    }
+                                                    else
+                                                    {
+                                                        newString += letters[y].ToString().ToUpper();
+                                                    }
+                                                }
+                                                else
+                                                {
+                                                    newString += letters[y].ToString().ToLower();
+                                                }
+                                            }
+                                            else
+                                            {
+                                                newString += letters[y];
+                                            }
+
+                                        }
+
+                                    }
+                                }
+
+
+                            }
+                            char[] newChars = newString.ToCharArray();
+
+                            for (int b = 0; b < newChars.Length; b++)
+                            {
+                                if (newChars[b] == 't' || newChars[b] == 'T')
+                                {
+                                    if (b != 0)
+                                    {
+                                        char prevChar = newChars[b - 1];
+                                        if (prevChar == 'o' || prevChar == 'O')
+                                        {
+                                            if (newChars[b] == 't')
+                                            {
+                                                newChars[b] = 'g';
+                                            }
+
+                                            if (newChars[b] == 'T')
+                                            {
+                                                newChars[b] = 'G';
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                            newString = new string(newChars);
+                            newWords.Add(newString);
+                            break;
+                        }
+                    }
+                }
+
+
+                if (!isVowel)
+                {
+                    string newString = "";
+                    if (hasAlpha)
+                    {
+
+                        if (letters[0].ToString().ToUpper() == letters[0].ToString())
+                        {
+                            newString += "B";
+                        }
+                        else
+                        {
+                            newString += "b";
+                        }
+                    }
+
+                    newString += word;
+                    newWords.Add(newString);
+                }
+            }
+
+            string newMsg = "";
+            for (int a = 0; a < newWords.Count; a++)
+            {
+                newMsg += newWords[a];
+                if (a != newWords.Count - 1)
+                {
+                    newMsg += seperator;
+                }
+            }
+            if (seperator == ' ')
+            {
+                return BogosBinter(newMsg, '\n');
+            }
+            if (newMsg.EndsWith("? 👽"))
+            {
+                Console.WriteLine("oooo aaaaaaa");
+            }
+            else if (!newMsg.EndsWith('?'))
+            {
+                newMsg += "?";
+                newMsg += " 👽";
+            }
+            else if (newMsg.EndsWith('?'))
+            {
+                newMsg += " 👽";
+            }
+
+            return newMsg;
         }
 
     }
